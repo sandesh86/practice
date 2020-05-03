@@ -15,35 +15,33 @@ import com.my.model.CatalogItem;
 import com.my.model.Movie;
 import com.my.model.Rating;
 import com.my.model.UserRatings;
+import com.my.services.MovieService;
+import com.my.services.RatingService;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 
 @RestController
 @RequestMapping("/catalog")
 public class MovieCatalogResource {
-
-	@Autowired
-	private RestTemplate restTemplate;
 	
 	@Autowired
 	private WebClient.Builder webClientBuilder;
 	
+	@Autowired
+	private MovieService movieService;
+	
+	@Autowired
+	private RatingService ratingService;
+	
 	@RequestMapping("/{userId}")
 	public List<CatalogItem> getCatalog(@PathVariable("userId") String userId) {
 				
-		UserRatings userRatings = restTemplate.getForObject("http://ratings-data-service/ratingsdata/users/" + userId, UserRatings.class);
-		List<Rating> ratings = userRatings.getRatings();
-//		List<Rating> ratings = Arrays.asList(
-//				new Rating("1234", 4),
-//				new Rating("5678", 6)
-//		);
+		UserRatings userRatings = ratingService.getUserRating(userId);
 		
-		return ratings.stream().map(rating -> {
-			Movie movie = restTemplate.getForObject("http://movie-info-service/movies/" + rating.getMovieId(), Movie.class);
-			
-			return new CatalogItem(movie.getMovieName(), "Best movie of Batman", rating.getRatings());			
-		}).collect(Collectors.toList());
-		
-		//return Collections.singletonList(new CatalogItem("Dark Knight", "Best movie of Batman", 9));
+		return userRatings.getRatings().stream()
+				.map(rating -> movieService.getCatalogItem(rating))
+				.collect(Collectors.toList());		
 	}
+	
 }
 
 
